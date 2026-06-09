@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Notion Date Widget</title>
+    <style>
+        /* 기본 여백 제거 및 중앙 정렬 방어벽 */
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            background-color: transparent; 
+            overflow: hidden; 
+        }
+        
+        #widget-container { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            height: 100vh; 
+            width: 100vw; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        }
+        
+        /* 날짜 텍스트 (24px의 약 2/3인 16px로 축소, 굵기 유지) */
+        #date { 
+            font-size: 16px; 
+            font-weight: 700; 
+            color: #000000; 
+            letter-spacing: -0.5px; 
+            line-height: 1; 
+            white-space: nowrap; 
+        }
+    </style>
+</head>
+<body>
+    <div id="widget-container">
+        <div id="date"></div>
+    </div>
+    <script>
+        function updateDate() {
+            const now = new Date();
+            const week = ['일', '월', '화', '수', '목', '금', '토'];
+            document.getElementById('date').innerText = 
+                `${now.getFullYear()}년 ${String(now.getMonth()+1).padStart(2,'0')}월 ${String(now.getDate()).padStart(2,'0')}일 (${week[now.getDay()]})`;
+        }
+        updateDate(); setInterval(updateDate, 60000);
+    </script>
+</body>
+</html>

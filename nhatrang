@@ -1,0 +1,379 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nha Trang Weather Widget</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  font-family: Arial, sans-serif;
+  background: transparent;
+}
+
+.weather-widget {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 650px;
+  height: 110px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  background: #FBFAF7;
+  color: #405565;
+}
+
+/* Location */
+.location {
+  flex: 0 0 14%;
+  padding-left: 8px;
+}
+
+.location-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #405565;
+  white-space: nowrap;
+}
+
+.location-sub {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #9AA9AE;
+  letter-spacing: 1px;
+}
+
+/* Current weather */
+.current-weather {
+  flex: 0 0 21%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-width: 0;
+  padding-right: 8px;
+}
+
+.current-icon {
+  width: 49px;
+  height: 49px;
+  flex-shrink: 0;
+}
+
+.current-info {
+  min-width: 0;
+}
+
+.current-temp {
+  font-size: 26px;
+  font-weight: 600;
+  color: #538EAA;
+  white-space: nowrap;
+}
+
+.current-desc {
+  font-size: 11px;
+  color: #87999F;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Forecast */
+.forecast {
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  height: 100%;
+}
+
+.forecast-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  border-left: 1px solid #EEEDE9;
+}
+
+.day-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #748B96;
+}
+
+.day-icon {
+  width: 29px;
+  height: 29px;
+}
+
+.temperatures {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.temp-high {
+  color: #DD819A;
+}
+
+.temp-low {
+  color: #6CA8C6;
+}
+
+/* Narrow screens: keep layout horizontally scrollable */
+@media (max-width: 650px) {
+  body {
+    overflow-x: auto;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<div class="weather-widget">
+
+  <div class="location">
+    <div class="location-name">NHA TRANG</div>
+    <div class="location-sub">WEATHER</div>
+  </div>
+
+  <div class="current-weather">
+    <img id="currentIcon" class="current-icon" alt="Weather">
+    <div class="current-info">
+      <div id="currentTemp" class="current-temp">--°C</div>
+      <div id="currentDesc" class="current-desc">Loading...</div>
+    </div>
+  </div>
+
+  <div class="forecast" id="forecast"></div>
+
+</div>
+
+<script>
+const LATITUDE = 12.2388;
+const LONGITUDE = 109.1967;
+const TIMEZONE = "Asia/Ho_Chi_Minh";
+
+// SVG weather icon generator
+function weatherIcon(code, isDay = true) {
+  let icon = "";
+
+  if (code === 0) {
+    // Clear sky
+    icon = `
+      <circle cx="32" cy="32" r="12"
+        fill="#FFD98E" stroke="#E8B962" stroke-width="2"/>
+      <g stroke="#E8B962" stroke-width="3"
+        stroke-linecap="round">
+        <path d="M32 6v8 M32 50v8 M6 32h8 M50 32h8
+                 M13 13l6 6 M45 45l6 6
+                 M51 13l-6 6 M19 45l-6 6"/>
+      </g>`;
+  } else if (code <= 3) {
+    // Partly cloudy / cloudy
+    icon = `
+      ${code <= 2 && isDay ? `
+      <circle cx="22" cy="22" r="11"
+        fill="#FFD98E" stroke="#E8B962" stroke-width="2"/>
+      ` : ""}
+      <path d="M18 47h30
+        c9 0 12-8 9-14
+        c-2-5-7-7-12-7
+        c-3-10-16-13-23-5
+        c-3 3-4 6-4 9
+        c-8-1-13 5-13 11
+        c0 5 5 6 13 6z"
+        fill="#C5DCE7"
+        stroke="#8AB7CC"
+        stroke-width="2.5"
+        stroke-linejoin="round"/>`;
+  } else if (code === 45 || code === 48) {
+    // Fog
+    icon = `
+      <path d="M15 28h34 M10 37h44 M17 46h30"
+        fill="none" stroke="#A9C2CD"
+        stroke-width="4" stroke-linecap="round"/>`;
+  } else if (
+    [51, 53, 55, 56, 57, 61, 63, 65,
+     66, 67, 80, 81, 82].includes(code)
+  ) {
+    // Rain
+    icon = `
+      <path d="M18 40h30
+        c12 0 12-15 1-17
+        c-4-14-24-13-28 0
+        c-14-1-17 17-3 17z"
+        fill="#C5DCE7"
+        stroke="#8AB7CC"
+        stroke-width="2.5"/>
+      <g stroke="#77B8DD" stroke-width="3"
+        stroke-linecap="round">
+        <path d="M21 47l-3 7 M34 47l-3 7 M47 47l-3 7"/>
+      </g>`;
+  } else if ([71, 73, 75, 77, 85, 86].includes(code)) {
+    // Snow
+    icon = `
+      <path d="M18 40h30
+        c12 0 12-15 1-17
+        c-4-14-24-13-28 0
+        c-14-1-17 17-3 17z"
+        fill="#C5DCE7" stroke="#8AB7CC" stroke-width="2.5"/>
+      <g fill="#9CC6DF">
+        <circle cx="20" cy="51" r="3"/>
+        <circle cx="33" cy="54" r="3"/>
+        <circle cx="46" cy="51" r="3"/>
+      </g>`;
+  } else if ([95, 96, 99].includes(code)) {
+    // Thunderstorm
+    icon = `
+      <path d="M18 40h30
+        c12 0 12-15 1-17
+        c-4-14-24-13-28 0
+        c-14-1-17 17-3 17z"
+        fill="#C5DCE7" stroke="#8AB7CC" stroke-width="2.5"/>
+      <path d="M34 39l-8 13h8l-4 10 15-17h-9l4-6z"
+        fill="#F6C66C"/>`;
+  } else {
+    icon = `
+      <circle cx="32" cy="32" r="12"
+        fill="#C5DCE7" stroke="#8AB7CC" stroke-width="2"/>`;
+  }
+
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 64 64">
+      ${icon}
+    </svg>`;
+
+  return "data:image/svg+xml;charset=utf-8," +
+    encodeURIComponent(svg);
+}
+
+// Weather description
+function getDescription(code) {
+  if (code === 0) return "Clear sky";
+  if (code === 1) return "Mainly clear";
+  if (code === 2) return "Partly cloudy";
+  if (code === 3) return "Overcast";
+  if (code === 45 || code === 48) return "Foggy";
+  if ([51, 53, 55, 56, 57].includes(code))
+    return "Drizzle";
+  if ([61, 63, 65, 66, 67].includes(code))
+    return "Rainy";
+  if ([80, 81, 82].includes(code))
+    return "Rain showers";
+  if ([71, 73, 75, 77, 85, 86].includes(code))
+    return "Snowy";
+  if ([95, 96, 99].includes(code))
+    return "Thunderstorm";
+
+  return "Cloudy";
+}
+
+function getDayName(dateString) {
+  const date = new Date(dateString + "T12:00:00");
+
+  return date.toLocaleDateString("en-US", {
+    weekday: "short"
+  });
+}
+
+async function loadWeather() {
+  const url =
+    "https://api.open-meteo.com/v1/forecast" +
+    `?latitude=${LATITUDE}` +
+    `&longitude=${LONGITUDE}` +
+    "&current=temperature_2m,weather_code,is_day" +
+    "&daily=weather_code,temperature_2m_max,temperature_2m_min" +
+    `&timezone=${TIMEZONE}` +
+    "&forecast_days=6";
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error("Weather API error");
+    }
+
+    const data = await response.json();
+
+    // Current weather
+    const current = data.current;
+
+    document.getElementById("currentTemp").textContent =
+      Math.round(current.temperature_2m) + "°C";
+
+    document.getElementById("currentDesc").textContent =
+      getDescription(current.weather_code);
+
+    document.getElementById("currentIcon").src =
+      weatherIcon(
+        current.weather_code,
+        current.is_day === 1
+      );
+
+    // Next 5 days (excluding today)
+    const forecast = document.getElementById("forecast");
+    forecast.innerHTML = "";
+
+    for (let i = 1; i <= 5; i++) {
+      const day = getDayName(data.daily.time[i]);
+      const code = data.daily.weather_code[i];
+
+      const max = Math.round(
+        data.daily.temperature_2m_max[i]
+      );
+
+      const min = Math.round(
+        data.daily.temperature_2m_min[i]
+      );
+
+      const item = document.createElement("div");
+      item.className = "forecast-day";
+
+      item.innerHTML = `
+        <div class="day-name">${day}</div>
+        <img class="day-icon"
+          src="${weatherIcon(code)}"
+          alt="${getDescription(code)}">
+        <div class="temperatures">
+          <span class="temp-high">${max}°</span>
+          <span class="temp-low">${min}°</span>
+        </div>
+      `;
+
+      forecast.appendChild(item);
+    }
+
+  } catch (error) {
+    console.error(error);
+
+    document.getElementById("currentDesc").textContent =
+      "Weather unavailable";
+  }
+}
+
+loadWeather();
+
+// Refresh every 30 minutes
+setInterval(loadWeather, 30 * 60 * 1000);
+</script>
+
+</body>
+</html>
